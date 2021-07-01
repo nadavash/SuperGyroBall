@@ -17,8 +17,7 @@ public class GameManager : MonoBehaviour, IRotationPublisher
     // Start is called before the first frame update
     void Start()
     {
-        IPEndPoint servEndpoint = new IPEndPoint(IPAddress.Any, 8080);
-        udpClient = new UdpClient(servEndpoint);
+        udpClient = new UdpClient(8080);
         incomingThread = new Thread(new ThreadStart(processIncomingPackets));
         incomingThread.Start();
     }
@@ -40,9 +39,9 @@ public class GameManager : MonoBehaviour, IRotationPublisher
             data = udpClient.Receive(ref sender);
             RotationUpdate newUpdate = new RotationUpdate() 
             {
-                Timestamp = System.BitConverter.ToInt32(data, 0),
-                X = System.BitConverter.ToSingle(data, 4),
-                Z = System.BitConverter.ToSingle(data, 8),
+                Timestamp = System.BitConverter.ToInt64(data, 0),
+                X = System.BitConverter.ToSingle(data, 8),
+                Z = System.BitConverter.ToSingle(data, 12),
             };
 
             lock(nextUpdate)
@@ -56,15 +55,23 @@ public class GameManager : MonoBehaviour, IRotationPublisher
         udpClient.Close();
     }
 
+    protected void OnGUI()
+    {
+        GUI.skin.label.fontSize = Screen.width / 40;
+
+        GUILayout.Label("Timestamp: " + nextUpdate.Timestamp);
+    }
+
     private void OnDestroy()
     {
         isDone = true;
+        udpClient.Close();
     }
 }
 
 public class RotationUpdate
 {
-    public int Timestamp;
+    public long Timestamp;
     public float X;
     public float Z;
 }

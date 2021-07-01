@@ -17,10 +17,13 @@ public class GyroRotator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Quaternion gyro = Helpers.GyroToUnity(Input.gyro.attitude);
-        Quaternion diff = gyro * Quaternion.Inverse(InitialAttitude);
-        diff = Quaternion.Euler(0, 0, -diff.eulerAngles.z) * diff;
-        transform.eulerAngles = new Vector3(diff.eulerAngles.x, 0, diff.eulerAngles.y);
+        if (SystemInfo.supportsGyroscope)
+        {
+            Quaternion gyro = Helpers.GyroToUnity(Input.gyro.attitude);
+            Quaternion diff = gyro * Quaternion.Inverse(InitialAttitude);
+            diff = Quaternion.Euler(0, 0, -diff.eulerAngles.z) * diff;
+            transform.eulerAngles = new Vector3(diff.eulerAngles.x, 0, diff.eulerAngles.y);
+        }
     }
 
     public void SetInitialAttitude() {
