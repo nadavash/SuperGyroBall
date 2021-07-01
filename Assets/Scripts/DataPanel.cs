@@ -6,15 +6,18 @@ using UnityEngine.UI;
 public class DataPanel : MonoBehaviour
 {
     public Text GyroscopeText;
+    public Text InitialText;
 
-    // Update is called once per frame
-    void Update()
+    public GyroRotator GyroRotator;
+
+    void Start()
     {
-        GyroscopeText.text = GyroToUnity(Input.gyro.attitude).ToString();
+        Input.gyro.enabled = true;
     }
 
-    private static Quaternion GyroToUnity(Quaternion q)
+    void Update()
     {
-        return new Quaternion(q.x, q.y, -q.z, -q.w);
+        GyroscopeText.text = Helpers.GyroToUnity(Input.gyro.attitude).ToString();
+        InitialText.text = GyroRotator.InitialAttitude.ToString();
     }
 }
