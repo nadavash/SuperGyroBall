@@ -11,4 +11,9 @@ public static class Helpers
     {
         return new Vector3(v.x, v.y, -v.z);
     }
+
+    public static Quaternion EliminateZRotation(Quaternion q)
+    {
+        return Quaternion.Euler(0, 0, -q.eulerAngles.z) * q;
+    }
 }

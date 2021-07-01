@@ -19,14 +19,13 @@ public class GyroRotator : MonoBehaviour
     {
         if (SystemInfo.supportsGyroscope)
         {
-            Quaternion gyro = Helpers.GyroToUnity(Input.gyro.attitude);
+            Quaternion gyro = Helpers.EliminateZRotation(Helpers.GyroToUnity(Input.gyro.attitude));
             Quaternion diff = gyro * Quaternion.Inverse(InitialAttitude);
-            diff = Quaternion.Euler(0, 0, -diff.eulerAngles.z) * diff;
             transform.eulerAngles = new Vector3(diff.eulerAngles.x, 0, diff.eulerAngles.y);
         }
     }
 
     public void SetInitialAttitude() {
-        InitialAttitude = Helpers.GyroToUnity(Input.gyro.attitude);
+        InitialAttitude = Helpers.EliminateZRotation(Helpers.GyroToUnity(Input.gyro.attitude));
     }
 }
