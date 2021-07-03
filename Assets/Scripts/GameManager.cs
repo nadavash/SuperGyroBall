@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -5,60 +6,87 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour, IRotationPublisher
 {
+    public RotationUpdate Current { get; set; }
+
     private UdpClient udpClient;
     private Thread incomingThread;
-
+    private Thread broadcastThread;
     private volatile bool isDone;
-
     private RotationUpdate nextUpdate = new RotationUpdate();
-
-    public RotationUpdate Current { get; set; }
 
     // Start is called before the first frame update
     void Start()
     {
         udpClient = new UdpClient(8080);
-        incomingThread = new Thread(new ThreadStart(processIncomingPackets));
+        udpClient.EnableBroadcast = true;
+        incomingThread = new Thread(new ThreadStart(processIncomingPacketsLoop));
         incomingThread.Start();
+        // broadcastThread = new Thread(new ThreadStart(broadcastLoop));
+        // broadcastThread.Start();
     }
 
     void FixedUpdate()
     {
-        lock(nextUpdate)
+        lock (nextUpdate)
         {
             Current = nextUpdate;
         }
     }
 
-    private void processIncomingPackets()
+    private void processIncomingPacketsLoop()
     {
         byte[] data;
         while (!isDone)
         {
-            IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
-            data = udpClient.Receive(ref sender);
-            RotationUpdate newUpdate = new RotationUpdate() 
+            try
             {
-                Timestamp = System.BitConverter.ToInt64(data, 0),
-                X = System.BitConverter.ToSingle(data, 8),
-                Z = System.BitConverter.ToSingle(data, 12),
-            };
-
-            lock(nextUpdate)
-            {
-                if (nextUpdate.Timestamp < newUpdate.Timestamp)
+                IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+                data = udpClient.Receive(ref sender);
+                if (data[0] == 1)
                 {
-                    nextUpdate = newUpdate;
+                    udpClient.Send(new byte[] { 0, 1 }, 2, sender);
+                    continue;
                 }
+
+                RotationUpdate newUpdate = new RotationUpdate()
+                {
+                    Timestamp = System.BitConverter.ToInt64(data, 1),
+                    X = System.BitConverter.ToSingle(data, 9),
+                    Z = System.BitConverter.ToSingle(data, 13),
+                };
+
+                lock (nextUpdate)
+                {
+                    if (nextUpdate.Timestamp < newUpdate.Timestamp)
+                    {
+                        nextUpdate = newUpdate;
+                    }
+                }
+            }
+            catch (ObjectDisposedException) { break; }
+            catch (SocketException e)
+            {
+                Debug.Log(string.Format("SocketException thrown: {0}", e));
+                break;
             }
         }
         udpClient.Close();
     }
 
+    // private void broadcastLoop()
+    // {
+    //     while (!isDone)
+    //     {
+    //         var broadcastEndpoint = new IPEndPoint(IPAddress.Parse("192.168.86.255"), 8081);
+    //         udpClient.Send(new byte[] { 1, 2, }, 2, broadcastEndpoint);
+    //         Debug.Log("Broadcasting!");
+    //         Thread.Sleep(3000);
+    //     }
+    // }
+
     protected void OnGUI()
     {
         GUI.skin.label.fontSize = Screen.width / 40;
-
         GUILayout.Label("Timestamp: " + nextUpdate.Timestamp);
     }
 
