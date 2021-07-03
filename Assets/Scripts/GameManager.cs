@@ -14,15 +14,19 @@ public class GameManager : MonoBehaviour, IRotationPublisher
     private volatile bool isDone;
     private RotationUpdate nextUpdate = new RotationUpdate();
 
+    private volatile int numPackets = 0;
+    private volatile float lastReceiveTime = 0f;
+    private volatile float lastAveragePackets = 0f;
+
     // Start is called before the first frame update
     void Start()
     {
+        Application.targetFrameRate = 60;
         udpClient = new UdpClient(8080);
         udpClient.EnableBroadcast = true;
         incomingThread = new Thread(new ThreadStart(processIncomingPacketsLoop));
         incomingThread.Start();
-        // broadcastThread = new Thread(new ThreadStart(broadcastLoop));
-        // broadcastThread.Start();
+
     }
 
     void FixedUpdate()
@@ -47,7 +51,7 @@ public class GameManager : MonoBehaviour, IRotationPublisher
                     udpClient.Send(new byte[] { 0, 1 }, 2, sender);
                     continue;
                 }
-
+                ++numPackets;
                 RotationUpdate newUpdate = new RotationUpdate()
                 {
                     Timestamp = System.BitConverter.ToInt64(data, 1),
@@ -73,21 +77,18 @@ public class GameManager : MonoBehaviour, IRotationPublisher
         udpClient.Close();
     }
 
-    // private void broadcastLoop()
-    // {
-    //     while (!isDone)
-    //     {
-    //         var broadcastEndpoint = new IPEndPoint(IPAddress.Parse("192.168.86.255"), 8081);
-    //         udpClient.Send(new byte[] { 1, 2, }, 2, broadcastEndpoint);
-    //         Debug.Log("Broadcasting!");
-    //         Thread.Sleep(3000);
-    //     }
-    // }
-
     protected void OnGUI()
     {
         GUI.skin.label.fontSize = Screen.width / 40;
         GUILayout.Label("Timestamp: " + nextUpdate.Timestamp);
+        GUILayout.Label(string.Format("Packets per second: {0:0.00}", lastAveragePackets));
+        float timeSinceReset = Time.fixedTime - lastReceiveTime;
+        if (timeSinceReset > 0.1f)
+        {
+            lastAveragePackets = numPackets / timeSinceReset;
+            lastReceiveTime = Time.fixedTime;
+            numPackets = 0;
+        }
     }
 
     private void OnDestroy()

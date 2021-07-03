@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class NetworkGyroRotator : MonoBehaviour
 {
+    public float LerpFractionalSpeed = 0.1f;
     public IRotationPublisher RotationPublisher;
 
     // Start is called before the first frame update
@@ -15,9 +16,10 @@ public class NetworkGyroRotator : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        transform.eulerAngles = 
-            new Vector3(
-                RotationPublisher.Current.X, 0, 
-                RotationPublisher.Current.Z);
+        transform.rotation = Quaternion.Lerp(
+            transform.rotation,
+            Quaternion.Euler(RotationPublisher.Current.X, 0, RotationPublisher.Current.Z),
+            LerpFractionalSpeed);
+            
     }
 }

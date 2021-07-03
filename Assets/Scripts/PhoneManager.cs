@@ -20,6 +20,7 @@ public class PhoneManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        Application.targetFrameRate = 60;
         Task.Run(ConnectToServer);
     }
 
