@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class PhoneManager : MonoBehaviour
 {
-    public string ServerAddress = "192.168.86.47";
+    public string ServerAddress = "169.254.53.124";//"192.168.86.47";
     public int ServerPort = 8080;
     public GyroRotator GyroRotator;
 
@@ -29,6 +29,10 @@ public class PhoneManager : MonoBehaviour
         udpClient = new UdpClient();
         // Special case on iOS since broadcasting does not work by default.
         if (Application.platform == RuntimePlatform.IPhonePlayer)
+        {
+            udpClient.Connect(Globals.GameHost, Globals.GamePort);
+        }
+        else if (Application.isEditor)
         {
             udpClient.Connect(ServerAddress, ServerPort);
         }
