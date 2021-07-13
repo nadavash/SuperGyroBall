@@ -71,10 +71,10 @@ public class PhoneManager : MonoBehaviour
         NetDataWriter dataWriter = new NetDataWriter(false, PACKET_SIZE);
         Vector3 rotation = GyroRotator.transform.rotation.eulerAngles;
         long currentTimestampMs = System.DateTime.Now.ToFileTimeUtc();
-        dataWriter.Put((byte)0);
+        dataWriter.Put((byte)0B0);
         dataWriter.Put(currentTimestampMs);
         dataWriter.Put(rotation.x);
-        dataWriter.Put(rotation.y);
+        dataWriter.Put(rotation.z);
         netClient.FirstPeer?.Send(dataWriter, DeliveryMethod.Unreliable);
     }
 
