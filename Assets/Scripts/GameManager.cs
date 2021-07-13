@@ -6,6 +6,7 @@ using UnityEngine;
 public class GameManager : MonoBehaviour, IRotationPublisher
 {
     public const int ServerPort = 8080;
+    [field:SerializeField]
     public RotationUpdate Current { get; set; } = new RotationUpdate();
 
     private NetManager server;
@@ -94,6 +95,7 @@ public class GameManager : MonoBehaviour, IRotationPublisher
     }
 }
 
+[System.Serializable]
 public class RotationUpdate
 {
     public long Timestamp;
@@ -103,5 +105,5 @@ public class RotationUpdate
 
 public interface IRotationPublisher
 {
-    RotationUpdate Current { get; set; }
+    RotationUpdate Current { get; }
 }
