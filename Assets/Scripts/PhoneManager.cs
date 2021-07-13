@@ -1,3 +1,5 @@
+using LiteNetLib;
+using LiteNetLib.Utils;
 using System;
 using System.IO;
 using System.Net;
@@ -11,11 +13,13 @@ public class PhoneManager : MonoBehaviour
     public int ServerPort = 8080;
     public GyroRotator GyroRotator;
 
+    private NetManager netClient;
     private const int PACKET_SIZE = 17;
+    
     private UdpClient udpClient;
     private byte[] sendBuffer = new byte[PACKET_SIZE];
 
-    private volatile bool isConnectionReady = false;
+    private volatile bool isConnected = false;
 
     // Start is called before the first frame update
     void Start()
@@ -26,52 +30,58 @@ public class PhoneManager : MonoBehaviour
 
     private void ConnectToServer()
     {
+        EventBasedNetListener listener = new EventBasedNetListener();
+        netClient = new NetManager(listener);
+        netClient.Start();
+
         udpClient = new UdpClient();
         // Special case on iOS since broadcasting does not work by default.
-        if (Application.platform == RuntimePlatform.IPhonePlayer)
+        if (Application.isEditor)
         {
-            udpClient.Connect(Globals.GameHost, Globals.GamePort);
+            netClient.Connect(ServerAddress, ServerPort, "SomeKey");
         }
-        else if (Application.isEditor)
+        else if (Application.platform == RuntimePlatform.IPhonePlayer)
         {
-            udpClient.Connect(ServerAddress, ServerPort);
+            netClient.Connect(Globals.GameHostAddress, Globals.GamePortAddress, "SomeKey");
         }
         else
         {
-            udpClient.EnableBroadcast = true;
-            udpClient.Send(new byte[1] { 1 }, 1, new IPEndPoint(IPAddress.Broadcast, 8080));
+            // netClient.SendBroadcast()
+            // udpClient.Send(new byte[1] { 1 }, 1, new IPEndPoint(IPAddress.Broadcast, 8080));
 
-            var serverEndpoint = new IPEndPoint(IPAddress.Any, 0);
-            byte[] bytes = udpClient.Receive(ref serverEndpoint);
-            Debug.Log("Broadcast response: " + bytes.Length);
-            udpClient.EnableBroadcast = false;
-            udpClient.Connect(serverEndpoint);
+            // var serverEndpoint = new IPEndPoint(IPAddress.Any, 0);
+            // byte[] bytes = udpClient.Receive(ref serverEndpoint);
+            // Debug.Log("Broadcast response: " + bytes.Length);
+            // udpClient.EnableBroadcast = false;
+            // udpClient.Connect(serverEndpoint);
         }
-        isConnectionReady = true;
+        isConnected = true;
     }
 
     // Update is called once per frame
     void FixedUpdate()
     {
-        if (!isConnectionReady)
+        if (!isConnected)
         {
             return;
         }
+
+        netClient.PollEvents();
         
-        using (var memStream = new MemoryStream(sendBuffer))
-        {
-            Vector3 rotation = GyroRotator.transform.rotation.eulerAngles;
-            long currentTimestampMs = System.DateTime.Now.ToFileTimeUtc();
-            memStream.Write(BitConverter.GetBytes((byte)0), 0, 1);
-            memStream.Write(BitConverter.GetBytes(currentTimestampMs), 0, 8);
-            memStream.Write(BitConverter.GetBytes(rotation.x), 0, 4);
-            memStream.Write(BitConverter.GetBytes(rotation.z), 0, 4);
-        }
-        udpClient.Send(sendBuffer, PACKET_SIZE);
+        NetDataWriter dataWriter = new NetDataWriter(false, PACKET_SIZE);
+        Vector3 rotation = GyroRotator.transform.rotation.eulerAngles;
+        long currentTimestampMs = System.DateTime.Now.ToFileTimeUtc();
+        dataWriter.Put((byte)0);
+        dataWriter.Put(currentTimestampMs);
+        dataWriter.Put(rotation.x);
+        dataWriter.Put(rotation.y);
+        netClient.FirstPeer?.Send(dataWriter, DeliveryMethod.Unreliable);
     }
 
     void OnDestroy()
     {
-        udpClient.Close();
+        netClient.DisconnectAll();
+        netClient.Stop();  
+        isConnected = false;         
     }
 }
