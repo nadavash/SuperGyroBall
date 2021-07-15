@@ -5,12 +5,21 @@ using UnityEngine;
 public class NetworkGyroRotator : MonoBehaviour
 {
     public float LerpFractionalSpeed = 0.1f;
-    public IRotationPublisher RotationPublisher;
+    public RotationUpdate RotationUpdate { 
+        get { return rotationUpdate; }
+        set {
+            if (value.Timestamp > rotationUpdate.Timestamp)
+            {
+                rotationUpdate = value;
+            }
+        }
+    }
+    
+    private RotationUpdate rotationUpdate;
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
-        RotationPublisher = GameObject.FindObjectOfType<GameManager>();
+        rotationUpdate = new RotationUpdate();
     }
 
     // Update is called once per frame
@@ -18,7 +27,7 @@ public class NetworkGyroRotator : MonoBehaviour
     {
         transform.rotation = Quaternion.Lerp(
             transform.rotation,
-            Quaternion.Euler(RotationPublisher.Current.X, 0, RotationPublisher.Current.Z),
+            Quaternion.Euler(RotationUpdate.X, 0, RotationUpdate.Z),
             LerpFractionalSpeed);
             
     }

@@ -40,7 +40,7 @@ public class PhoneManager : MonoBehaviour
         {
             netClient.Connect(ServerAddress, ServerPort, "SomeKey");
         }
-        else if (Application.platform == RuntimePlatform.IPhonePlayer)
+        else if (Globals.UseConnectionScreenData)
         {
             netClient.Connect(Globals.GameHostAddress, Globals.GamePortAddress, "SomeKey");
         }

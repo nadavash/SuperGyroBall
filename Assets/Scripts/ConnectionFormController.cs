@@ -15,6 +15,7 @@ public class ConnectionFormController : MonoBehaviour
 
     private void ConnectToGame()
     {
+        Globals.UseConnectionScreenData = true;
         Globals.GameHostAddress = IPField.text;
         UnityEngine.SceneManagement.SceneManager.LoadScene("PhoneScene");
     }

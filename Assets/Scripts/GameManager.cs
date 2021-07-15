@@ -1,13 +1,18 @@
 using LiteNetLib;
 using LiteNetLib.Utils;
+using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 
-public class GameManager : MonoBehaviour, IRotationPublisher
+public class GameManager : MonoBehaviour
 {
     public const int ServerPort = 8080;
-    [field:SerializeField]
-    public RotationUpdate Current { get; set; } = new RotationUpdate();
+
+    public GameObject PlayerFieldPrefab;
+    public float PlayerFieldSpacing = 10f;
+    public Transform CameraTransform;
+
+    private Vector3 targetCameraPosition;
 
     private NetManager server;
     private Thread incomingThread;
@@ -15,10 +20,13 @@ public class GameManager : MonoBehaviour, IRotationPublisher
     private int numPackets = 0;
     private float lastReceiveTime = 0f;
     private float lastAveragePackets = 0f;
+    private Dictionary<int, GameObject> playerFields;
 
     // Start is called before the first frame update
     void Start()
     {
+        targetCameraPosition = CameraTransform.position;
+        playerFields = new Dictionary<int, GameObject>();
         Application.targetFrameRate = 60;
         var listener = new EventBasedNetListener();
         server = new NetManager(listener);
@@ -27,10 +35,7 @@ public class GameManager : MonoBehaviour, IRotationPublisher
         listener.ConnectionRequestEvent += OnConnectionRequest;
         listener.PeerConnectedEvent += OnPeerConnected;
         listener.NetworkReceiveEvent += OnNetworkReceive;
-        // udpClient = new UdpClient(8080);
-        // udpClient.EnableBroadcast = true;
-        // incomingThread = new Thread(new ThreadStart(processIncomingPacketsLoop));
-        // incomingThread.Start();
+        listener.PeerDisconnectedEvent += OnPeerDisconnected;
     }
 
     private void OnConnectionRequest(ConnectionRequest request)
@@ -45,11 +50,18 @@ public class GameManager : MonoBehaviour, IRotationPublisher
         var writer = new NetDataWriter();
         writer.Put("ready");
         peer.Send(writer, DeliveryMethod.ReliableOrdered);
+        float xPos = (server.ConnectedPeersCount - 1) * PlayerFieldSpacing;
+        playerFields[peer.Id] = GameObject.Instantiate(
+            PlayerFieldPrefab,
+            Vector3.right * xPos,
+            Quaternion.identity
+        );
+        targetCameraPosition = CameraTransform.position;
+        targetCameraPosition.x = xPos / 2f;
     }
 
     private void OnNetworkReceive(NetPeer peer, NetDataReader reader, DeliveryMethod method)
     {
-        Debug.Log("Message received.");
         ++numPackets;
 
         reader.SkipBytes(1);
@@ -63,22 +75,35 @@ public class GameManager : MonoBehaviour, IRotationPublisher
             Z = reader.GetFloat(),
         };
 
-        if (Current.Timestamp < newUpdate.Timestamp)
-        {
-            Current = newUpdate;
-        }
+        playerFields[peer.Id].GetComponentInChildren<NetworkGyroRotator>().RotationUpdate = newUpdate;
+    }
+
+    private void OnPeerDisconnected(NetPeer peer, DisconnectInfo info)
+    {
+        GameObject.Destroy(playerFields[peer.Id]);
+        playerFields.Remove(peer.Id);
+
+        float xPos = (server.ConnectedPeersCount - 1) * PlayerFieldSpacing;
+        targetCameraPosition = CameraTransform.position;
+        targetCameraPosition.x = xPos / 2f;
     }
 
     void FixedUpdate()
     {
         server.PollEvents();
+
+        CameraTransform.position = Vector3.Lerp(
+            CameraTransform.position,
+            targetCameraPosition,
+            0.1f
+        );
     }
 
     protected void OnGUI()
     {
         GUI.skin.label.fontSize = Screen.width / 40;
         GUILayout.Label("Num clients: " + server.ConnectedPeersCount);
-        GUILayout.Label("Timestamp: " + Current?.Timestamp);
+        // GUILayout.Label("Timestamp: " + Current?.Timestamp);
         GUILayout.Label(string.Format("Packets per second: {0:0.00}", lastAveragePackets));
         float timeSinceReset = Time.fixedTime - lastReceiveTime;
         if (timeSinceReset > 0.1f)
@@ -101,9 +126,4 @@ public class RotationUpdate
     public long Timestamp;
     public float X;
     public float Z;
-}
-
-public interface IRotationPublisher
-{
-    RotationUpdate Current { get; }
 }

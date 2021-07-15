@@ -1,6 +1,7 @@
 
 public static class Globals
 {
-    public static string GameHostAddress = "localhost";
-    public static int GamePortAddress = 8080;
+    public static bool UseConnectionScreenData { get; set; } = false;
+    public static string GameHostAddress { get; set; } = "localhost";
+    public static int GamePortAddress { get; set; } = 8080;
 }
