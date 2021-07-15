@@ -19,7 +19,10 @@ public class PhoneManager : MonoBehaviour
     private UdpClient udpClient;
     private byte[] sendBuffer = new byte[PACKET_SIZE];
 
-    private volatile bool isConnected = false;
+    public void Disconnect()
+    {
+        netClient?.DisconnectAll();
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -46,6 +49,7 @@ public class PhoneManager : MonoBehaviour
         }
         else
         {
+            // TODO: Resurrect local discovery code.
             // netClient.SendBroadcast()
             // udpClient.Send(new byte[1] { 1 }, 1, new IPEndPoint(IPAddress.Broadcast, 8080));
 
@@ -55,15 +59,18 @@ public class PhoneManager : MonoBehaviour
             // udpClient.EnableBroadcast = false;
             // udpClient.Connect(serverEndpoint);
         }
-        isConnected = true;
     }
 
     // Update is called once per frame
     void FixedUpdate()
     {
-        if (!isConnected)
+        if (netClient == null)
         {
             return;
+        }
+        else if (netClient.FirstPeer?.ConnectionState == ConnectionState.Disconnected)
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene("ConnectScene");
         }
 
         netClient.PollEvents();
@@ -82,6 +89,5 @@ public class PhoneManager : MonoBehaviour
     {
         netClient.DisconnectAll();
         netClient.Stop();  
-        isConnected = false;         
     }
 }
