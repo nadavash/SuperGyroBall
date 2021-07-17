@@ -8,25 +8,26 @@ public class GameManager : MonoBehaviour
 {
     public const int ServerPort = 8080;
 
-    public GameObject PlayerFieldPrefab;
-    public float PlayerFieldSpacing = 10f;
+    public PlayerField PlayerFieldPrefab;
     public Transform CameraTransform;
 
     private Vector3 targetCameraPosition;
-
     private NetManager server;
     private Thread incomingThread;
     private Thread broadcastThread;
     private int numPackets = 0;
     private float lastReceiveTime = 0f;
     private float lastAveragePackets = 0f;
-    private Dictionary<int, GameObject> playerFields;
+    private Dictionary<int, PlayerField> playerFields;
+    private PlayerFieldOrganizer fieldOrganizer;
 
     // Start is called before the first frame update
     void Start()
     {
         targetCameraPosition = CameraTransform.position;
-        playerFields = new Dictionary<int, GameObject>();
+        playerFields = new Dictionary<int, PlayerField>();
+        fieldOrganizer = new PlayerFieldOrganizer();
+
         Application.targetFrameRate = 60;
         var listener = new EventBasedNetListener();
         server = new NetManager(listener);
@@ -50,14 +51,10 @@ public class GameManager : MonoBehaviour
         var writer = new NetDataWriter();
         writer.Put("ready");
         peer.Send(writer, DeliveryMethod.ReliableOrdered);
-        float xPos = (server.ConnectedPeersCount - 1) * PlayerFieldSpacing;
-        playerFields[peer.Id] = GameObject.Instantiate(
-            PlayerFieldPrefab,
-            Vector3.right * xPos,
-            Quaternion.identity
-        );
-        targetCameraPosition = CameraTransform.position;
-        targetCameraPosition.x = xPos / 2f;
+        PlayerField field = GameObject.Instantiate(PlayerFieldPrefab);
+        playerFields[peer.Id] = field;
+        fieldOrganizer.Add(field);
+        targetCameraPosition.x = fieldOrganizer.MiddleX;
     }
 
     private void OnNetworkReceive(NetPeer peer, NetDataReader reader, DeliveryMethod method)
@@ -75,17 +72,18 @@ public class GameManager : MonoBehaviour
             Z = reader.GetFloat(),
         };
 
-        playerFields[peer.Id].GetComponentInChildren<NetworkGyroRotator>().RotationUpdate = newUpdate;
+        playerFields[peer.Id].TargetRotation = newUpdate;
     }
 
     private void OnPeerDisconnected(NetPeer peer, DisconnectInfo info)
     {
-        GameObject.Destroy(playerFields[peer.Id]);
+        Debug.Log(
+            string.Format("Player disconnected. Id = {0}, Reason = {1}", peer.Id, info.Reason));
+        PlayerField field = playerFields[peer.Id];
+        fieldOrganizer.Remove(field);
         playerFields.Remove(peer.Id);
-
-        float xPos = (server.ConnectedPeersCount - 1) * PlayerFieldSpacing;
-        targetCameraPosition = CameraTransform.position;
-        targetCameraPosition.x = xPos / 2f;
+        GameObject.Destroy(field.gameObject);
+        targetCameraPosition.x = fieldOrganizer.MiddleX;
     }
 
     void FixedUpdate()
